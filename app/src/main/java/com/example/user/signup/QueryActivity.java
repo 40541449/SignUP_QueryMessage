@@ -5,6 +5,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
@@ -24,7 +25,7 @@ import java.util.ArrayList;
 public class QueryActivity extends AppCompatActivity {
 
     private ListView listView;
-
+    ArrayList<String> msg_id_Array = new ArrayList<String>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,16 +35,17 @@ public class QueryActivity extends AppCompatActivity {
 
         listView = (ListView) findViewById(R.id.listview);
 
-        //ArrayAdapter adapter = new ArrayAdapter(QueryActivity.this, android.R.layout.simple_list_item_1, func);
-
-        //listView.setAdapter(adapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView arg0, View arg1, int arg2, long arg3) {
+                ListView listView = (ListView) arg0;
+                String msg_id = msg_id_Array.get(arg2);
+                Log.d("id=", msg_id);
+                new TheDeleteTask().execute(msg_id);
+            }
+        });
 
         new TheTask().execute("123456789");
-
-    }
-
-    public void showListView()
-    {
 
     }
 
@@ -51,7 +53,7 @@ public class QueryActivity extends AppCompatActivity {
     {
         @Override
         protected void onPreExecute() {
-
+            listView.setAdapter(null);
         }
 
         @Override
@@ -68,7 +70,7 @@ public class QueryActivity extends AppCompatActivity {
 
                 data = "?phone=" + URLEncoder.encode(phoneNumber, "UTF-8");
 
-                link = "http://140.130.33.101/QueryMessage.php" + data;
+                link = "http://140.130.33.126/queryMessage.php" + data;
 
                 URL url = new URL(link);
 
@@ -106,8 +108,11 @@ public class QueryActivity extends AppCompatActivity {
                         JSONObject jsonObject = new_array.getJSONObject(i);
 
                         String msg = jsonObject.getString("msg").toString();
+                        String msg_id = jsonObject.getString("msg_id").toString();
 
                         stringArray.add(msg);
+
+                        msg_id_Array.add(msg_id);
 
                         Log.d("result=", msg);
 
@@ -120,6 +125,91 @@ public class QueryActivity extends AppCompatActivity {
                 ArrayAdapter adapter = new ArrayAdapter(QueryActivity.this, android.R.layout.simple_list_item_1, stringArray);
 
                 listView.setAdapter(adapter);
+
+            } catch (JSONException e) {
+
+                e.printStackTrace();
+
+                Toast.makeText(QueryActivity.this, "Error parsing JSON data.", Toast.LENGTH_SHORT).show();
+
+            }
+            else {
+
+                Toast.makeText(QueryActivity.this, "Couldn't get any JSON data.", Toast.LENGTH_SHORT).show();
+
+            }
+        }
+    }
+
+    class TheDeleteTask extends AsyncTask<String,Void,String>
+    {
+        @Override
+        protected void onPreExecute() {
+
+        }
+
+        @Override
+        protected String doInBackground(String... arg0) {
+
+            String msg_id = arg0[0];
+
+            String link;
+            String data;
+            BufferedReader bufferedReader;
+            String result;
+
+            try {
+
+                data = "?msg_id=" + URLEncoder.encode(msg_id, "UTF-8");
+
+                link = "http://140.130.33.126/deleteMessage.php" + data;
+
+                URL url = new URL(link);
+
+                HttpURLConnection con = (HttpURLConnection) url.openConnection();
+
+                bufferedReader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+
+                result = bufferedReader.readLine();
+
+                return result;
+
+            } catch (Exception e) {
+
+                return new String("Exception: " + e.getMessage());
+            }
+
+        }
+
+        @Override
+        protected void onPostExecute(String result)
+        {
+            String jsonStr = result;
+
+            Log.d("result=",result);
+
+            if (jsonStr != null) try {
+
+                JSONObject jsonObj = new JSONObject(jsonStr);
+
+                    try {
+
+                        String query_result = jsonObj.getString("query_result");
+                        Log.d("query_result=",query_result);
+
+                        if (query_result.equals("SUCCESS")) {
+                            Toast.makeText(QueryActivity.this, "資料刪除成功 ", Toast.LENGTH_SHORT).show();
+                            new TheTask().execute("123456789");
+                        }
+                        else if (query_result.equals("FAILURE"))
+                            Toast.makeText(QueryActivity.this, "資料刪除失敗", Toast.LENGTH_SHORT).show();
+                        else
+                            Toast.makeText(QueryActivity.this, "無法連接伺服器.", Toast.LENGTH_SHORT).show();
+
+                    } catch (JSONException e) {
+
+                        e.printStackTrace();
+                    }
 
             } catch (JSONException e) {
 
